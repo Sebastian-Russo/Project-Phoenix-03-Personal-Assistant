@@ -1,0 +1,28 @@
+# Flask
+flask==3.0.3
+flask-cors==4.0.1
+
+# Anthropic
+anthropic==0.49.0
+
+# Slack
+slack-sdk==3.27.2
+
+# Google
+google-auth==2.29.0
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.131.0
+
+# Spotify
+requests==2.32.3
+
+# JWT (Spotify auth)
+PyJWT==2.8.0
+cryptography==42.0.8
+
+# Atlassian (Jira + Confluence)
+atlassian-python-api==3.41.14
+
+# Environment
+python-dotenv==1.0.1
