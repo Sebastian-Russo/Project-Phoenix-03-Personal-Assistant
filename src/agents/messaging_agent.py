@@ -44,6 +44,8 @@ class MessagingAgent:
             "send":      self._send,
             "reply":     self._reply,
             "unread":    self._get_unread,
+            "check_unread": self._get_unread,
+            "get_unread":   self._get_unread,
         }
 
         handler = handlers.get(action)

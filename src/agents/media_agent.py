@@ -48,6 +48,10 @@ class MediaAgent:
             "volume":      self._set_volume,
             "now_playing": self._now_playing,
             "devices":     self._get_devices,
+            "check_current":   self._now_playing,
+            "current":         self._now_playing,
+            "get_devices":     self._get_devices,
+            "set_volume":      self._set_volume,
         }
 
         handler = handlers.get(action)

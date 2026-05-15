@@ -109,7 +109,15 @@ Respond in this exact JSON format:
     }}
 }}
 
-Only include parameters that are explicitly mentioned. Return valid JSON only."""
+Critical rules:
+- action field MUST be one of the exact values listed above, never invent new action names
+- For "skip", "next track", "next song", "play next", "play next song", "next one" → intent: play_music, action: "skip"
+- For "what's playing", "now playing", "current song", "what song" → intent: play_music, action: "now_playing"
+- For "unread", "check messages", "any messages", "check slack" → intent: read_messages, action: "unread"
+- For "pause", "stop music", "stop playing" → intent: play_music, action: "pause"
+- For "volume", "turn up", "turn down", "louder", "quieter" → intent: play_music, action: "volume"
+- NEVER classify "next song" or "skip" as intent: play_music with a search query
+- Only include parameters that are relevant. Return valid JSON only."""
             }]
         )
 

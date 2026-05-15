@@ -198,7 +198,7 @@ class SpotifyConnector(BaseConnector):
             timeout=10,
         )
         resp.raise_for_status()
-        return resp.json() if resp.content else None
+        return resp.json() if resp.content and len(resp.content) > 0 else None
 
     def _post(self, path: str, payload: dict = None) -> Optional[dict]:
         resp = self._session.post(
@@ -211,7 +211,7 @@ class SpotifyConnector(BaseConnector):
             timeout=10,
         )
         resp.raise_for_status()
-        return resp.json() if resp.content else None
+        return resp.json() if resp.content and len(resp.content) > 0 else None
 
     def get_tools(self) -> list[dict]:
         return [
