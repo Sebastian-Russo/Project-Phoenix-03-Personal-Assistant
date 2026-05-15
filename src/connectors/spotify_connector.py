@@ -1,13 +1,13 @@
 """
 Spotify connector — control playback, search tracks, manage playlists.
-Uses OAuth2 with PKCE for the initial auth flow, then stores the
-refresh token locally for subsequent runs.
-Think of it as a remote control for Spotify — find it, play it, skip it.
+Uses Authorization Code flow with manual code paste for OAuth.
+Spotify requires https for redirect URIs which breaks local HTTP servers,
+so after browser approval the user pastes the redirect URL into the terminal.
 
 Requires in .env:
     SPOTIFY_CLIENT_ID
     SPOTIFY_CLIENT_SECRET
-    SPOTIFY_REDIRECT_URI    (default: http://localhost:8888/callback)
+    SPOTIFY_REDIRECT_URI    (https://localhost:8888/callback)
     SPOTIFY_TOKEN_PATH      (default: certs/spotify_token.json)
 """
 
@@ -15,7 +15,6 @@ import json
 import os
 import time
 import webbrowser
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Optional
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -41,8 +40,7 @@ SCOPES = " ".join([
 TOKEN_PATH    = os.getenv("SPOTIFY_TOKEN_PATH",    "certs/spotify_token.json")
 CLIENT_ID     = os.getenv("SPOTIFY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-REDIRECT_URI  = os.getenv("SPOTIFY_REDIRECT_URI",  "http://localhost:8888/callback")
-
+REDIRECT_URI  = os.getenv("SPOTIFY_REDIRECT_URI",  "http://127.0.0.1:8888/callback")
 
 # ── Token management ──────────────────────────────────────────────────────────
 
@@ -73,7 +71,6 @@ def _refresh_token(refresh_token: str) -> dict:
     resp.raise_for_status()
     token = resp.json()
     token["expires_at"] = time.time() + token["expires_in"]
-    # Spotify doesn't always return a new refresh token — keep the old one
     if "refresh_token" not in token:
         token["refresh_token"] = refresh_token
     return token
@@ -81,10 +78,10 @@ def _refresh_token(refresh_token: str) -> dict:
 
 def _run_auth_flow() -> dict:
     """
-    Open browser for Spotify OAuth consent.
-    Spins up a temporary local HTTP server to catch the redirect
-    and extract the authorization code automatically.
-    Think of it as holding out a net to catch the callback.
+    Manual auth flow — opens browser, user copies the redirect URL.
+    Spotify requires https for redirect URIs which breaks local HTTP
+    server callback capture, so we ask the user to paste the URL instead.
+    Think of it as catching the callback by hand rather than with a net.
     """
     auth_params = {
         "client_id":     CLIENT_ID,
@@ -94,40 +91,35 @@ def _run_auth_flow() -> dict:
     }
     auth_url = f"{SPOTIFY_AUTH_URL}?{urlencode(auth_params)}"
 
-    # Capture the auth code via a temporary local server
-    auth_code = [None]
-
-    class CallbackHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            parsed  = urlparse(self.path)
-            params  = parse_qs(parsed.query)
-            if "code" in params:
-                auth_code[0] = params["code"][0]
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"<h2>Phoenix 03 — Spotify connected. You can close this tab.</h2>")
-
-        def log_message(self, format, *args):
-            pass  # suppress server logs
-
-    port   = 8888
-    server = HTTPServer(("localhost", port), CallbackHandler)
-
-    print(f"[spotify] Opening browser for auth...")
+    print(f"\n[spotify] Opening browser for Spotify authorization...")
+    print(f"[spotify] If browser doesn't open, visit:\n  {auth_url}\n")
     webbrowser.open(auth_url)
-    server.handle_request()  # handle one request then stop
 
-    if not auth_code[0]:
-        raise RuntimeError("[spotify] No auth code received.")
+    print("[spotify] After approving, your browser will redirect to a URL")
+    print("[spotify] starting with http://127.0.0.1:8888/callback?code=...")
+    print("[spotify] The page will show an error — that's expected.")
+    print("[spotify] Copy the full URL from the address bar and paste it here:\n")
+    callback_url = input("Paste redirect URL: ").strip()
 
-    # Exchange auth code for tokens
+    parsed = urlparse(callback_url)
+    params = parse_qs(parsed.query)
+
+    if "code" not in params:
+        raise RuntimeError(
+            "[spotify] No code found in pasted URL. "
+            "Make sure to copy the full URL including ?code=..."
+        )
+
+    auth_code = params["code"][0]
+    print(f"[spotify] Using redirect URI: {REDIRECT_URI}")
+
     resp = requests.post(
         SPOTIFY_TOKEN_URL,
         data={
-            "grant_type":   "authorization_code",
-            "code":         auth_code[0],
-            "redirect_uri": REDIRECT_URI,
-            "client_id":    CLIENT_ID,
+            "grant_type":    "authorization_code",
+            "code":          auth_code,
+            "redirect_uri":  REDIRECT_URI,
+            "client_id":     CLIENT_ID,
             "client_secret": CLIENT_SECRET,
         },
     )
@@ -147,7 +139,6 @@ class SpotifyConnector(BaseConnector):
         token = _load_token()
 
         if token:
-            # Refresh if expired
             if time.time() >= token.get("expires_at", 0) - 60:
                 print("[spotify] Token expired — refreshing...")
                 try:
@@ -172,7 +163,6 @@ class SpotifyConnector(BaseConnector):
     def health_check(self) -> bool:
         if not self._token:
             return False
-        # Refresh proactively if close to expiry
         if time.time() >= self._token.get("expires_at", 0) - 60:
             try:
                 self._token = _refresh_token(self._token["refresh_token"])
@@ -316,15 +306,9 @@ class SpotifyConnector(BaseConnector):
 
     # ── Implementations ───────────────────────────────────────────────────────
 
-    def _play(
-        self,
-        query:       str,
-        type:        str = "track",
-        device_name: str = None,
-    ) -> dict:
-        # Search for the content
-        results  = self._get("/search", {"q": query, "type": type, "limit": 1})
-        items    = results.get(f"{type}s", {}).get("items", [])
+    def _play(self, query: str, type: str = "track", device_name: str = None) -> dict:
+        results = self._get("/search", {"q": query, "type": type, "limit": 1})
+        items   = results.get(f"{type}s", {}).get("items", [])
 
         if not items:
             raise ValueError(f"[spotify] Nothing found for: {query}")
@@ -332,12 +316,10 @@ class SpotifyConnector(BaseConnector):
         item = items[0]
         uri  = item["uri"]
 
-        # Resolve device ID if specified
         device_id = None
         if device_name:
             device_id = self._resolve_device(device_name)
 
-        # Play
         payload = {}
         if type == "track":
             payload["uris"] = [uri]
@@ -348,10 +330,10 @@ class SpotifyConnector(BaseConnector):
         self._put("/me/player/play", payload, params)
 
         return {
-            "playing":  item["name"],
-            "type":     type,
-            "uri":      uri,
-            "device":   device_name or "active device",
+            "playing": item["name"],
+            "type":    type,
+            "uri":     uri,
+            "device":  device_name or "active device",
         }
 
     def _pause(self) -> dict:
@@ -386,16 +368,15 @@ class SpotifyConnector(BaseConnector):
                 return {"status": "nothing playing"}
             item = data["item"]
             return {
-                "track":    item["name"],
-                "artist":   ", ".join(a["name"] for a in item["artists"]),
-                "album":    item["album"]["name"],
+                "track":      item["name"],
+                "artist":     ", ".join(a["name"] for a in item["artists"]),
+                "album":      item["album"]["name"],
                 "is_playing": data["is_playing"],
             }
         except Exception:
             return {"status": "nothing playing"}
 
     def _resolve_device(self, name: str) -> Optional[str]:
-        """Resolve a device name to its ID."""
         devices = self._get_devices()
         for d in devices:
             if name.lower() in d["name"].lower():
