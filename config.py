@@ -36,6 +36,10 @@ class Config:
     SPOTIFY_REDIRECT_URI  = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:8888/callback")
     SPOTIFY_TOKEN_PATH    = os.getenv("SPOTIFY_TOKEN_PATH", "certs/spotify_token.json")
 
+    # ── Discord ───────────────────────────────────────────────────────────────
+    DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+    DISCORD_GUILD_ID  = os.getenv("DISCORD_GUILD_ID")
+
     # ── GitHub ────────────────────────────────────────────────────────────────
     GITHUB_TOKEN    = os.getenv("GITHUB_TOKEN")
     GITHUB_USERNAME = os.getenv("GITHUB_USERNAME")

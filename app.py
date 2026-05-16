@@ -37,7 +37,7 @@ from src.connectors.spotify_connector import SpotifyConnector
 from src.connectors.github_connector import GitHubConnector
 from src.connectors.jira_connector import JiraConnector
 from src.connectors.confluence_connector import ConfluenceConnector
-
+from src.connectors.discord_connector import DiscordConnector
 
 app  = Flask(__name__, static_folder="static")
 CORS(app)
@@ -117,6 +117,12 @@ def bootstrap() -> Orchestrator:
         confluence = ConfluenceConnector()
         if confluence.authenticate():
             registry.register("confluence", confluence)
+
+    # ── Discord ───────────────────────────────────────────────────────────────
+    if os.getenv("DISCORD_BOT_TOKEN"):
+        discord = DiscordConnector()
+        if discord.authenticate():
+            registry.register("discord", discord)
 
     # ── Wire agents ───────────────────────────────────────────────────────────
     messaging = MessagingAgent(slack)          if slack    else None

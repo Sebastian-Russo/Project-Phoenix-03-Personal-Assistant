@@ -31,6 +31,7 @@ class ConnectorType(Enum):
 class MessagePlatform(Enum):
     SLACK = "slack"
     EMAIL = "email"
+    DISCORD = "discord"
 
 
 class IntentType(Enum):

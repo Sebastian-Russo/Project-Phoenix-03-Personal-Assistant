@@ -21,6 +21,9 @@ requests==2.32.3
 PyJWT==2.8.0
 cryptography==42.0.8
 
+# Discord
+discord.py==2.3.2
+
 # Atlassian (Jira + Confluence)
 atlassian-python-api==3.41.14
 
