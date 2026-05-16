@@ -66,11 +66,9 @@ class SlackConnector(BaseConnector):
         try:
             resp = requests.post(
                 f"{SLACK_BASE_URL}/tooling.tokens.rotate",
-                data={
-                    "client_id":     self._client_id,
-                    "client_secret": self._client_secret,
-                    "refresh_token": self._refresh_token,
-                },
+                headers={"Authorization": f"Bearer {self._refresh_token}"},
+                data={"refresh_token": self._refresh_token},
+                timeout=10,
             )
             data = resp.json()
             if data.get("ok"):

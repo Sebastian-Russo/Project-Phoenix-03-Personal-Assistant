@@ -38,6 +38,7 @@ from src.connectors.github_connector import GitHubConnector
 from src.connectors.jira_connector import JiraConnector
 from src.connectors.confluence_connector import ConfluenceConnector
 from src.connectors.discord_connector import DiscordConnector
+from src.connectors.acrcloud_connector import ACRCloudConnector
 
 app  = Flask(__name__, static_folder="static")
 CORS(app)
@@ -123,6 +124,12 @@ def bootstrap() -> Orchestrator:
         discord = DiscordConnector()
         if discord.authenticate():
             registry.register("discord", discord)
+
+    # ── ACRCloud ──────────────────────────────────────────────────────────────
+    if os.getenv("ACRCLOUD_ACCESS_KEY"):
+        acrcloud = ACRCloudConnector()
+        if acrcloud.authenticate():
+            registry.register("acrcloud", acrcloud)
 
     # ── Wire agents ───────────────────────────────────────────────────────────
     messaging = MessagingAgent(slack)          if slack    else None
