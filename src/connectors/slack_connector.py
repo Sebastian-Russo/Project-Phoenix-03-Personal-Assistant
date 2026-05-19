@@ -27,7 +27,7 @@ SLACK_BASE_URL = "https://slack.com/api"
 class SlackConnector(BaseConnector):
 
     def __init__(self):
-        self._access_token  = os.getenv("SLACK_ACCESS_TOKEN")
+        self._access_token  = os.getenv("SLACK_BOT_TOKEN") or os.getenv("SLACK_ACCESS_TOKEN")  # ← changed
         self._refresh_token = os.getenv("SLACK_REFRESH_TOKEN")
         self._client_id     = os.getenv("SLACK_CLIENT_ID")
         self._client_secret = os.getenv("SLACK_CLIENT_SECRET")
